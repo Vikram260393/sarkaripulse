@@ -1,0 +1,48 @@
+name: SarkariPulse CI Quality & Security Gate
+
+on:
+  pull_request:
+    branches: [main, development]
+  push:
+    branches: [main, development]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint, Typecheck, Tests, Security Scan & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      - name: ESLint check
+        run: npm run lint
+
+      - name: Unit, RLS, RBAC, Verification, SEO & API tests
+        run: npm test
+
+      - name: Secret & client-bundle isolation scan
+        run: npm run security:scan
+
+      - name: Production Next.js build
+        run: npm run build
+
+      - name: Verify local Appendix E Release Gate checks
+        run: npm run verify:gates
